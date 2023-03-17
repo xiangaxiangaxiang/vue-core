@@ -24,6 +24,7 @@ function get(
   // #1772: readonly(reactive(Map)) should return readonly + reactive version
   // of the value
   target = (target as any)[ReactiveFlags.RAW]
+  // 获取源目标和key值
   const rawTarget = toRaw(target)
   const rawKey = toRaw(key)
   if (!isReadonly) {
@@ -32,6 +33,7 @@ function get(
     }
     track(rawTarget, TrackOpTypes.GET, rawKey)
   }
+  // 获取原型链上的has方法
   const { has } = getProto(rawTarget)
   const wrap = isShallow ? toShallow : isReadonly ? toReadonly : toReactive
   if (has.call(rawTarget, key)) {

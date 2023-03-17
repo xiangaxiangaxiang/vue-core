@@ -55,6 +55,7 @@ function targetTypeMap(rawType: string) {
   }
 }
 
+// 获取代理目标类型
 function getTargetType(value: Target) {
   return value[ReactiveFlags.SKIP] || !Object.isExtensible(value)
     ? TargetType.INVALID
@@ -185,6 +186,7 @@ function createReactiveObject(
   collectionHandlers: ProxyHandler<any>,
   proxyMap: WeakMap<Target, any>
 ) {
+  // 如果不是对象，则直接返回入参
   if (!isObject(target)) {
     if (__DEV__) {
       console.warn(`value cannot be made reactive: ${String(target)}`)
@@ -193,6 +195,7 @@ function createReactiveObject(
   }
   // target is already a Proxy, return it.
   // exception: calling readonly() on a reactive object
+  // todo: ReactiveFlags.RAW什么时候赋值
   if (
     target[ReactiveFlags.RAW] &&
     !(isReadonly && target[ReactiveFlags.IS_REACTIVE])
@@ -200,11 +203,13 @@ function createReactiveObject(
     return target
   }
   // target already has corresponding Proxy
+  // 如果已经存在这个代理对象，则直接返回原代理
   const existingProxy = proxyMap.get(target)
   if (existingProxy) {
     return existingProxy
   }
   // only specific value types can be observed.
+  // 判断对象类型，如果是普通对象返回TargetType.COMMON, WeakMap、Map、Set、WeakSet返回TargetType.COLLECTION，其他返回TargetType.INVALID
   const targetType = getTargetType(target)
   if (targetType === TargetType.INVALID) {
     return target
