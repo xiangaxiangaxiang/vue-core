@@ -26,7 +26,7 @@ function get(
   target = (target as any)[ReactiveFlags.RAW]
   // 获取源目标和key值
   const rawTarget = toRaw(target)
-  const rawKey = toRaw(key)
+  const rawKey = toRaw(key) // weakmap 时，对象可能作为key值
   if (!isReadonly) {
     if (key !== rawKey) {
       track(rawTarget, TrackOpTypes.GET, key)
@@ -36,13 +36,16 @@ function get(
   // 获取原型链上的has方法
   const { has } = getProto(rawTarget)
   const wrap = isShallow ? toShallow : isReadonly ? toReadonly : toReactive
+  // 如果源对象存在这个key值，将之转为对应的响应式对象
   if (has.call(rawTarget, key)) {
     return wrap(target.get(key))
   } else if (has.call(rawTarget, rawKey)) {
+    // 源对象存在这个源key值,则通过源key值获取到源值,然后进行响应式处理
     return wrap(target.get(rawKey))
   } else if (target !== rawTarget) {
     // #3602 readonly(reactive(Map))
     // ensure that the nested reactive `Map` can do tracking for itself
+    // 如果target是代理对象,则手动调用一次get(key)确保追踪被响应
     target.get(key)
   }
 }
@@ -57,6 +60,7 @@ function has(this: CollectionTypes, key: unknown, isReadonly = false): boolean {
     }
     track(rawTarget, TrackOpTypes.HAS, rawKey)
   }
+  // 如果key是原值,直接返回has
   return key === rawKey
     ? target.has(key)
     : target.has(key) || target.has(rawKey)
@@ -73,6 +77,7 @@ function add(this: SetTypes, value: unknown) {
   const target = toRaw(this)
   const proto = getProto(target)
   const hadKey = proto.has.call(target, value)
+  // 新的值加进来则触发事件
   if (!hadKey) {
     target.add(value)
     trigger(target, TriggerOpTypes.ADD, value, value)
@@ -90,6 +95,7 @@ function set(this: MapTypes, key: unknown, value: unknown) {
     key = toRaw(key)
     hadKey = has.call(target, key)
   } else if (__DEV__) {
+    // 如果key值已存在且开发模式下
     checkIdentityKeys(target, has, key)
   }
 
@@ -102,6 +108,11 @@ function set(this: MapTypes, key: unknown, value: unknown) {
   }
   return this
 }
+
+/**
+ * 看下来 add/set/delete的处理相似,先判断key值是否存在,如果不存在则执行trigger函数
+ * todo: 为什么仅存在旧的值才触发,推测是已存在的值更新交由reactive另一分支(baseHanders)去处理了,验证一下
+ */
 
 function deleteEntry(this: CollectionTypes, key: unknown) {
   const target = toRaw(this)
@@ -126,6 +137,7 @@ function deleteEntry(this: CollectionTypes, key: unknown) {
 function clear(this: IterableCollections) {
   const target = toRaw(this)
   const hadItems = target.size !== 0
+  // 开发模式下将基于原本的target去创建一个oldTarget,供trigger函数使用,然后执行target本身的clear函数
   const oldTarget = __DEV__
     ? isMap(target)
       ? new Map(target)
@@ -149,6 +161,7 @@ function createForEach(isReadonly: boolean, isShallow: boolean) {
     const target = observed[ReactiveFlags.RAW]
     const rawTarget = toRaw(target)
     const wrap = isShallow ? toShallow : isReadonly ? toReadonly : toReactive
+    // 依赖收集
     !isReadonly && track(rawTarget, TrackOpTypes.ITERATE, ITERATE_KEY)
     return target.forEach((value: unknown, key: unknown) => {
       // important: make sure the callback is
@@ -189,6 +202,7 @@ function createIterableMethod(
     const isKeyOnly = method === 'keys' && targetIsMap
     const innerIterator = target[method](...args)
     const wrap = isShallow ? toShallow : isReadonly ? toReadonly : toReactive
+    // 通过上面一堆的判断处理,然后进行响应式依赖收集
     !isReadonly &&
       track(
         rawTarget,
@@ -388,6 +402,7 @@ function checkIdentityKeys(
   key: unknown
 ) {
   const rawKey = toRaw(key)
+  // 如果key是代理对象且代理对象存在源key,开发模式下控制台警告
   if (rawKey !== key && has.call(target, rawKey)) {
     const type = toRawType(target)
     console.warn(
