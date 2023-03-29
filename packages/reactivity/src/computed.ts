@@ -32,7 +32,7 @@ export class ComputedRefImpl<T> {
   public readonly __v_isRef = true
   public readonly [ReactiveFlags.IS_READONLY]: boolean = false
 
-  public _dirty = true
+  public _dirty = true // 标识是否脏数据,如果是脏数据则重新执行副作用获取最新数据
   public _cacheable: boolean
 
   constructor(
@@ -42,6 +42,7 @@ export class ComputedRefImpl<T> {
     isSSR: boolean
   ) {
     this.effect = new ReactiveEffect(getter, () => {
+      // 当数据发生变动且_dirty为false时,将_dirty设为true并触发副作用
       if (!this._dirty) {
         this._dirty = true
         triggerRefValue(this)
@@ -56,6 +57,7 @@ export class ComputedRefImpl<T> {
     // the computed ref may get wrapped by other proxies e.g. readonly() #3376
     const self = toRaw(this)
     trackRefValue(self)
+    // 如果是脏数据或者不允许缓存,则对_value重新赋值
     if (self._dirty || !self._cacheable) {
       self._dirty = false
       self._value = self.effect.run()!

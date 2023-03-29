@@ -37,7 +37,7 @@ type RefBase<T> = {
   value: T
 }
 
-// 对Ref进行依赖追踪
+// 进行依赖追踪
 export function trackRefValue(ref: RefBase<any>) {
   if (shouldTrack && activeEffect) {
     ref = toRaw(ref)

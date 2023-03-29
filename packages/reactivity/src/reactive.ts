@@ -196,6 +196,7 @@ function createReactiveObject(
   // target is already a Proxy, return it.
   // exception: calling readonly() on a reactive object
   // todo: ReactiveFlags.RAW什么时候赋值
+  // fix todo: ReactiveFlags.RAW不需要赋值,在proxy拦截ReactiveFlags.RAW这个key直接返回源对象
   if (
     target[ReactiveFlags.RAW] &&
     !(isReadonly && target[ReactiveFlags.IS_REACTIVE])
