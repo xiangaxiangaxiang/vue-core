@@ -267,8 +267,6 @@ export function trackEffects(
 ) {
   let shouldTrack = false
   if (effectTrackDepth <= maxMarkerBits) {
-    // todo: 这里没整明白
-    // 如果不是新的追踪
     if (!newTracked(dep)) {
       // 设置新状态
       dep.n |= trackOpBit // set newly tracked
